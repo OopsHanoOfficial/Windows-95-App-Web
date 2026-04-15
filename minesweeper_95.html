@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Minesweeper - Windows 95</title>
+    <style>
+        :root { --win-gray: #c0c0c0; --win-dark: #808080; --win-light: #ffffff; }
+        * { box-sizing: border-box; font-family: 'Courier New', monospace; user-select: none; touch-action: manipulation; }
+        body { margin: 0; padding: 0; background: #008080; display: flex; justify-content: center; align-items: center; height: 100vh; }
+
+        #game-box {
+            background: var(--win-gray); border: 3px solid;
+            border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+            padding: 6px; box-shadow: 4px 4px 10px rgba(0,0,0,0.5);
+        }
+
+        #scoreboard {
+            border: 2px inset var(--win-light); background: var(--win-gray);
+            padding: 6px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
+        }
+
+        .counter {
+            background: black; color: #ff0000; font-size: 26px; 
+            padding: 2px 8px; border: 1px inset var(--win-light);
+            min-width: 60px; text-align: right; font-weight: bold;
+        }
+
+        #face-btn {
+            width: 36px; height: 36px; border: 2px solid;
+            border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+            display: flex; justify-content: center; align-items: center; 
+            cursor: pointer; font-size: 22px; background: var(--win-gray);
+        }
+        #face-btn:active { border-color: var(--win-dark) var(--win-light) var(--win-light) var(--win-dark); }
+
+        #grid {
+            display: grid; 
+            grid-template-columns: repeat(10, 32px); 
+            grid-template-rows: repeat(10, 32px);
+            border: 3px inset var(--win-light);
+        }
+
+        .cell {
+            width: 32px; height: 32px; border: 2px solid;
+            border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+            display: flex; justify-content: center; align-items: center;
+            font-weight: bold; cursor: pointer; font-size: 18px; background: var(--win-gray);
+        }
+
+        .cell.revealed {
+            border: 1px solid #7b7b7b;
+            background: #bdbdbd;
+        }
+
+        .n1 { color: #0000ff; } .n2 { color: #008000; } .n3 { color: #ff0000; } 
+        .n4 { color: #000080; } .n5 { color: #800000; }
+
+        .mine { background-color: #ff0000 !important; color: white; }
+    </style>
+</head>
+<body>
+
+<div id="game-box">
+    <div id="scoreboard">
+        <div class="counter" id="mine-count">020</div>
+        <div id="face-btn" onclick="location.reload()" title="Chơi lại từ đầu">😊</div>
+        <div class="counter" id="timer">000</div>
+    </div>
+    <div id="grid"></div>
+</div>
+
+<script>
+    const ROWS = 10;
+    const COLS = 10;
+    const MINES = 20; // Tăng lượng mìn lên 20 quả
+    let grid = [];
+    let gameOver = false;
+    let time = 0;
+    let timerStarted = false;
+    let timerInterval;
+
+    const gridElement = document.getElementById('grid');
+    const faceBtn = document.getElementById('face-btn');
+
+    function createGrid() {
+        for (let r = 0; r < ROWS; r++) {
+            grid[r] = [];
+            for (let c = 0; c < COLS; c++) {
+                grid[r][c] = { r, c, mine: false, revealed: false, count: 0, flag: false };
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.id = `cell-${r}-${c}`;
+                
+                // Hỗ trợ chạm trên điện thoại
+                cell.onclick = () => handleLeftClick(r, c);
+                cell.oncontextmenu = (e) => { e.preventDefault(); handleRightClick(r, c); };
+                
+                gridElement.appendChild(cell);
+            }
+        }
+        placeMines();
+        calculateNumbers();
+    }
+
+    function placeMines() {
+        let placed = 0;
+        while (placed < MINES) {
+            let r = Math.floor(Math.random() * ROWS);
+            let c = Math.floor(Math.random() * COLS);
+            if (!grid[r][c].mine) {
+                grid[r][c].mine = true;
+                placed++;
+            }
+        }
+    }
+
+    function calculateNumbers() {
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                if (!grid[r][c].mine) {
+                    let count = 0;
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            if (grid[r+dr] && grid[r+dr][c+dc] && grid[r+dr][c+dc].mine) count++;
+                        }
+                    }
+                    grid[r][c].count = count;
+                }
+            }
+        }
+    }
+
+    function handleLeftClick(r, c) {
+        if (gameOver || grid[r][c].flag) return;
+        
+        if (!timerStarted) {
+            timerStarted = true;
+            timerInterval = setInterval(() => {
+                time++;
+                document.getElementById('timer').innerText = time.toString().padStart(3, '0');
+            }, 1000);
+        }
+
+        reveal(r, c);
+    }
+
+    function handleRightClick(r, c) {
+        if (gameOver || grid[r][c].revealed) return;
+        grid[r][c].flag = !grid[r][c].flag;
+        document.getElementById(`cell-${r}-${c}`).innerHTML = grid[r][c].flag ? "🚩" : "";
+    }
+
+    function reveal(r, c) {
+        if (grid[r][c].revealed) return;
+        
+        const cell = grid[r][c];
+        const el = document.getElementById(`cell-${r}-${c}`);
+        cell.revealed = true;
+        el.classList.add('revealed');
+
+        if (cell.mine) {
+            endGame(false);
+            el.innerHTML = "💣";
+            el.classList.add('mine');
+            return;
+        }
+
+        if (cell.count > 0) {
+            el.innerHTML = cell.count;
+            el.classList.add(`n${cell.count}`);
+        } else {
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (grid[r+dr] && grid[r+dr][c+dc]) reveal(r+dr, c+dc);
+                }
+            }
+        }
+        checkWin();
+    }
+
+    function endGame(win) {
+        gameOver = true;
+        clearInterval(timerInterval);
+        if (!win) {
+            faceBtn.innerText = "😵";
+            // Hiện toàn bộ bom
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (grid[r][c].mine) {
+                        const mineEl = document.getElementById(`cell-${r}-${c}`);
+                        mineEl.innerHTML = "💣";
+                        if (!mineEl.classList.contains('revealed')) mineEl.style.color = "black";
+                    }
+                }
+            }
+        } else {
+            faceBtn.innerText = "😎";
+        }
+    }
+
+    function checkWin() {
+        let revealedCount = 0;
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                if (grid[r][c].revealed) revealedCount++;
+            }
+        }
+        if (revealedCount === (ROWS * COLS) - MINES) {
+            endGame(true);
+            alert("Bạn đã thắng ván mìn cực khó này!");
+        }
+    }
+
+    window.onload = createGrid;
+</script>
+</body>
+</html>

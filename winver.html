@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>About Windows</title>
+    <style>
+        :root { --win-gray: #c0c0c0; --win-dark: #808080; --win-light: #ffffff; --win-blue: #000080; }
+        * { box-sizing: border-box; font-family: 'Tahoma', sans-serif; }
+        body { margin: 0; padding: 0; background: #008080; display: flex; justify-content: center; align-items: center; height: 100vh; }
+
+        /* CỬA SỔ WINVER */
+        #winver-box {
+            width: 350px; background: var(--win-gray);
+            border: 2px solid; border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+            padding: 2px; box-shadow: 2px 2px 0 #000;
+        }
+
+        #title-bar { background: var(--win-blue); color: white; padding: 3px 10px; font-size: 12px; font-weight: bold; }
+
+        .content { padding: 15px; display: flex; gap: 15px; }
+        
+        /* LOGO WINDOWS 95 GIẢ LẬP */
+        .logo-side {
+            width: 50px; height: 50px; background: linear-gradient(45deg, red, yellow, green, blue);
+            border: 2px inset var(--win-light); display: flex; justify-content: center; align-items: center;
+            font-weight: bold; color: white; font-size: 24px; text-shadow: 1px 1px 2px black;
+        }
+
+        .info-side { flex-grow: 1; font-size: 12px; line-height: 1.5; color: #000; }
+
+        .divider { height: 2px; background: var(--win-dark); border-bottom: 1px solid var(--win-light); margin: 10px 0; }
+
+        button {
+            float: right; padding: 4px 20px; border: 2px solid;
+            border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+            background: var(--win-gray); cursor: pointer; outline: none;
+        }
+        button:active { border-color: var(--win-dark) var(--win-light) var(--win-light) var(--win-dark); }
+    </style>
+</head>
+<body>
+
+<div id="winver-box">
+    <div id="title-bar">About Windows</div>
+    <div class="content">
+        <div class="logo-side">95</div>
+        <div class="info-side">
+            <p style="font-size: 14px; font-weight: bold; margin: 0;">Microsoft Windows</p>
+            <p style="margin: 0;">Version 4.0 (Build 950)</p>
+            <p style="margin: 0;">Edition 2026</p>
+            <p style="margin: 10px 0 0 0;">Copyright (C) 1981-1995 Microsoft Corp.</p>
+            
+            <div class="divider"></div>
+            
+            <p>Sản phẩm mã nguồn mở</p>
+            <p style="margin-left: 20px;"><b></b></p>
+            
+            <p>Thiết kế phần cứng nhận diện:</p>
+            <p style="margin-left: 20px;"><b id="detected-device">Detecting...</b></p>
+            
+            <p style="margin-top: 15px;">Dung lượng vật lý cho phép đối với Windows:</p>
+            <p style="margin-left: 20px;"><b id="ram-info">Scanning RAM...</b></p>
+            
+            <div style="margin-top: 20px;">
+                <button onclick="window.close() || alert('Đóng ứng dụng Winver')">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function getHardwareInfo() {
+        const ua = navigator.userAgent;
+        let device = "Generic PC";
+        
+        // Nhận diện máy của An
+        if (/Android/i.test(ua)) {
+            if (/Samsung/i.test(ua) || /SM-/i.test(ua)) {
+                device = "Samsung Galaxy Mobile";
+            } else {
+                device = "Android Smartphone";
+            }
+        } else if (/Windows/i.test(ua)) {
+            device = "Windows Desktop";
+        }
+
+        document.getElementById('detected-device').innerText = device;
+
+        // Giả lập thông tin RAM dựa trên phần cứng thật (navigator.deviceMemory)
+        // Lưu ý: navigator.deviceMemory chỉ trả về số gần đúng (2, 4, 8GB)
+        const ram = navigator.deviceMemory || "4"; 
+        document.getElementById('ram-info').innerText = ram + ",048 KB RAM";
+    }
+
+    window.onload = getHardwareInfo;
+</script>
+
+</body>
+</html>

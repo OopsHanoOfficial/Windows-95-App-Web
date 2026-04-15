@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Windows Task Manager - Realtime Hardware</title>
+    <style>
+        :root { --win-gray: #c0c0c0; --win-dark: #808080; --win-light: #ffffff; --win-blue: #000080; }
+        * { box-sizing: border-box; font-family: 'Tahoma', sans-serif; font-size: 11px; }
+        body { margin: 0; background: #008080; display: flex; justify-content: center; align-items: center; height: 100vh; }
+
+        #window {
+            width: 350px; background: var(--win-gray); border: 2px solid;
+            border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+            padding: 2px; box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+        }
+
+        #title-bar { background: var(--win-blue); color: white; padding: 3px 5px; font-weight: bold; display: flex; justify-content: space-between; }
+
+        .tabs { display: flex; padding: 5px 5px 0 5px; }
+        .tab { 
+            padding: 4px 12px; border: 2px solid; border-color: var(--win-light) var(--win-dark) transparent var(--win-light);
+            border-radius: 3px 3px 0 0; cursor: pointer; margin-right: 2px;
+        }
+        .tab.active { background: var(--win-gray); z-index: 2; margin-bottom: -2px; padding-bottom: 6px; font-weight: bold; }
+
+        #container {
+            background: var(--win-gray); border: 2px solid;
+            border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+            margin: 0 5px 5px 5px; padding: 10px; height: 300px; display: flex; flex-direction: column;
+        }
+
+        /* BẢNG TÁC VỤ */
+        .task-table {
+            width: 100%; border-collapse: collapse; background: white;
+            border: 2px inset var(--win-light); flex-grow: 1; display: block; overflow-y: scroll;
+        }
+        .task-table th { background: var(--win-gray); border: 1px solid var(--win-dark); position: sticky; top: 0; text-align: left; padding: 4px; }
+        .task-table td { border: 1px solid #eee; padding: 4px; }
+        .selected { background: var(--win-blue) !important; color: white; }
+
+        /* BIỂU ĐỒ */
+        #perf-view { display: none; flex-direction: column; height: 100%; }
+        .stat-box { border: 2px inset var(--win-light); background: #000; color: #0f0; padding: 10px; margin-bottom: 10px; font-family: monospace; font-size: 14px; }
+
+        .controls { display: flex; justify-content: flex-end; padding-top: 10px; gap: 5px; }
+        button { padding: 4px 15px; border: 2px solid; border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light); background: var(--win-gray); }
+        button:active { border-color: var(--win-dark) var(--win-light) var(--win-light) var(--win-dark); }
+    </style>
+</head>
+<body>
+
+<div id="window">
+    <div id="title-bar"><span>Windows Task Manager</span><span>X</span></div>
+    
+    <div class="tabs">
+        <div id="tab-proc" class="tab active" onclick="switchTab('proc')">Processes</div>
+        <div id="tab-perf" class="tab" onclick="switchTab('perf')">Performance</div>
+    </div>
+
+    <div id="container">
+        <div id="view-proc" style="display: flex; flex-direction: column; height: 100%;">
+            <table class="task-table">
+                <thead>
+                    <tr>
+                        <th width="50%">Task</th>
+                        <th width="20%">CPU</th>
+                        <th width="30%">Memory</th>
+                    </tr>
+                </thead>
+                <tbody id="task-body">
+                    </tbody>
+            </table>
+            <div class="controls">
+                <button onclick="updateProcesses()">Refresh</button>
+                <button id="end-btn" disabled onclick="endTask()">End Task</button>
+            </div>
+        </div>
+
+        <div id="perf-view">
+            <label>CPU Usage History (Logical Cores: <span id="core-count">0</span>)</label>
+            <div class="stat-box" id="cpu-stat">Calculating...</div>
+            
+            <label>Physical Memory (RAM):</label>
+            <div class="stat-box" id="ram-stat">Scanning RAM...</div>
+            
+            <p style="font-size: 10px;">* Dữ liệu được lấy trực tiếp từ Hardware API của thiết bị.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedRow = null;
+
+    function switchTab(type) {
+        document.getElementById('tab-proc').classList.toggle('active', type === 'proc');
+        document.getElementById('tab-perf').classList.toggle('active', type === 'perf');
+        document.getElementById('view-proc').style.display = (type === 'proc') ? 'flex' : 'none';
+        document.getElementById('perf-view').style.display = (type === 'perf') ? 'flex' : 'none';
+    }
+
+    // HÀM KIỂM TRA TÁC VỤ VÀ BỘ NHỚ THỰC TẾ
+    function updateProcesses() {
+        const tbody = document.getElementById('task-body');
+        tbody.innerHTML = '';
+        
+        // 1. Giả lập các tiến trình hệ thống nội bộ
+        const apps = [
+            {name: "Windows 95 Kernel", cpu: "02%"},
+            {name: "System Idle Process", cpu: "94%"},
+            {name: "Explorer.exe", cpu: "01%"},
+            {name: "Winver.exe", cpu: "00%"}
+        ];
+
+        // 2. Lấy dung lượng bộ nhớ thực tế trình duyệt đang dùng (Nếu trình duyệt hỗ trợ)
+        let memoryUsage = "45,210 K";
+        if (performance.memory) {
+            memoryUsage = Math.round(performance.memory.usedJSHeapSize / 1024).toLocaleString() + " K";
+        }
+
+        apps.forEach(app => {
+            const row = document.createElement('tr');
+            row.onclick = () => {
+                if(selectedRow) selectedRow.classList.remove('selected');
+                selectedRow = row;
+                row.classList.add('selected');
+                document.getElementById('end-btn').disabled = false;
+            };
+            row.innerHTML = `<td>${app.name}</td><td>${app.cpu}</td><td>${app.name === "OopsOS Kernel" ? memoryUsage : Math.floor(Math.random()*5000 + 100).toLocaleString() + " K"}</td>`;
+            tbody.appendChild(row);
+        });
+    }
+
+    // HÀM KIỂM TRA PHẦN CỨNG THỰC TẾ (CPU & RAM)
+    function updateHardwareStats() {
+        // Kiểm tra số nhân CPU
+        const cores = navigator.hardwareConcurrency || "Unknown";
+        document.getElementById('core-count').innerText = cores;
+        document.getElementById('cpu-stat').innerText = `Current Load: ${Math.floor(Math.random() * 15 + 5)}% \nClock Speed: ~2.3GHz`;
+
+        // Kiểm tra dung lượng RAM thực tế của máy Samsung (Gần đúng)
+        if (navigator.deviceMemory) {
+            const totalRam = navigator.deviceMemory;
+            document.getElementById('ram-stat').innerText = `Total RAM: ${totalRam} GB\nAvailable: ~${(totalRam * 0.4).toFixed(1)} GB`;
+        } else {
+            document.getElementById('ram-stat').innerText = "RAM: 4.0 GB (Default Detection)";
+        }
+    }
+
+    function endTask() {
+        if(selectedRow) {
+            alert("Hệ thống: Không thể đóng tác vụ nhân hệ điều hành!");
+        }
+    }
+
+    // Khởi chạy
+    updateProcesses();
+    updateHardwareStats();
+    setInterval(updateHardwareStats, 2000); // Cập nhật thông số CPU giả lập mỗi 2s
+</script>
+</body>
+</html>

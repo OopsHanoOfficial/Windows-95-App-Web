@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Control Panel - Hardware Monitor</title>
+    <style>
+        :root { --win-gray: #c0c0c0; --win-dark: #808080; --win-light: #ffffff; --win-blue: #000080; }
+        * { box-sizing: border-box; font-family: 'MS Sans Serif', Tahoma, sans-serif; touch-action: manipulation; }
+        body { margin: 0; padding: 10px; background: #008080; display: flex; justify-content: center; height: 100vh; }
+
+        /* KHUNG CỬA SỔ CHUẨN WIN 95 */
+        #window {
+            width: 100%; max-width: 380px; background: var(--win-gray);
+            border: 2px solid; border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+            padding: 2px; height: fit-content; align-self: center;
+        }
+
+        #title-bar { background: var(--win-blue); color: white; padding: 3px 5px; font-weight: bold; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+
+        /* TABS GIAO DIỆN */
+        .tabs { display: flex; padding: 5px 5px 0 5px; gap: 2px; background: var(--win-gray); }
+        .tab { 
+            padding: 5px 12px; background: var(--win-gray); font-size: 11px;
+            border: 2px solid; border-color: var(--win-light) var(--win-dark) transparent var(--win-light);
+            border-radius: 3px 3px 0 0; cursor: pointer;
+        }
+        .tab.active { z-index: 2; margin-bottom: -2px; padding-bottom: 7px; font-weight: bold; }
+
+        /* NỘI DUNG CHÍNH */
+        #content {
+            background: var(--win-gray); border: 2px solid;
+            border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+            margin: 0 5px 5px 5px; padding: 15px; min-height: 220px;
+        }
+
+        .section { display: none; }
+        .section.active { display: block; }
+
+        /* STYLE CHO THÔNG TIN PHẦN CỨNG */
+        .hardware-box {
+            background: #eee; border: 2px inset var(--win-light); padding: 10px; margin-top: 10px;
+        }
+        .hw-line { font-size: 12px; margin: 5px 0; border-bottom: 1px solid #ddd; padding-bottom: 2px; }
+        .hw-label { font-weight: bold; color: #000; display: inline-block; width: 100px; }
+
+        button {
+            padding: 5px 15px; border: 2px solid;
+            border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+            background: var(--win-gray); cursor: pointer; font-size: 12px;
+        }
+        button:active { border-color: var(--win-dark) var(--win-light) var(--win-light) var(--win-dark); }
+    </style>
+</head>
+<body>
+
+<div id="window">
+    <div id="title-bar">
+        <span>System Properties</span>
+        <span style="font-size: 10px;">[?] [X]</span>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" onclick="showTab('general')">General</div>
+        <div class="tab" onclick="showTab('info')">Hardware</div>
+    </div>
+
+    <div id="content">
+        <div id="general" class="section active">
+            <p style="font-size: 12px;"><b>Hệ điều hành:</b></p>
+            <p style="font-size: 12px; margin-left: 20px;">Microsoft Windows 95<br>Edition 2026</p>
+            <p style="font-size: 12px; margin-top: 20px;"><b>Cài đặt bởi:</b></p>
+            <p style="font-size: 12px; margin-left: 20px;">Admin</p>
+            <button onclick="alert('Đã tối ưu hóa hệ thống!')" style="margin-top: 10px;">Tối ưu hóa</button>
+        </div>
+
+        <div id="info" class="section">
+            <p style="font-size: 12px; font-weight: bold;">Thông tin phần cứng thực tế:</p>
+            <div class="hardware-box">
+                <div class="hw-line"><span class="hw-label">Thiết bị:</span> <span id="hw-device">Đang quét...</span></div>
+                <div class="hw-line"><span class="hw-label">Hệ thống:</span> <span id="hw-os">Đang quét...</span></div>
+                <div class="hw-line"><span class="hw-label">Trình duyệt:</span> <span id="hw-browser">Đang quét...</span></div>
+                <div class="hw-line"><span class="hw-label">Màn hình:</span> <span id="hw-screen">0 x 0</span></div>
+                <div class="hw-line"><span class="hw-label">Bộ nhớ đệm:</span> <span id="hw-cores">Đang đếm...</span></div>
+            </div>
+            <p style="font-size: 10px; color: #cc0000; margin-top: 10px;">* Đang kết nối trực tiếp với nhân Kernel...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showTab(tabId) {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    // HÀM KIỂM TRA PHẦN CỨNG THỰC TẾ
+    function runHardwareScan() {
+        const ua = navigator.userAgent;
+        let device = "Generic PC / Máy tính";
+        let os = "Không xác định";
+        
+        // 1. Nhận diện máy Samsung hoặc Android
+        if (/Android/i.test(ua)) {
+            os = "Android " + (ua.match(/Android\s([0-9\.]+)/)?.[1] || "");
+            if (/SM-/i.test(ua) || /Samsung/i.test(ua)) {
+                device = "Samsung Galaxy Device";
+            } else {
+                device = "Smartphone Android";
+            }
+        } else if (/Windows NT/i.test(ua)) {
+            os = "Windows Modern Edition";
+            device = "Desktop PC";
+        }
+
+        // 2. Nhận diện Trình duyệt
+        let browser = "Web Browser";
+        if (/Chrome/i.test(ua)) browser = "Google Chrome / WebView";
+        else if (/Safari/i.test(ua)) browser = "Safari";
+
+        // 3. Hiển thị lên màn hình
+        document.getElementById('hw-device').innerText = device;
+        document.getElementById('hw-os').innerText = os;
+        document.getElementById('hw-browser').innerText = browser;
+        document.getElementById('hw-screen').innerText = `${window.screen.width} x ${window.screen.height} (Pixels)`;
+        
+        // Kiểm tra số nhân xử lý (Logical Processors)
+        const cores = navigator.hardwareConcurrency || "N/A";
+        document.getElementById('hw-cores').innerText = cores + " Cores detected";
+    }
+
+    // Chạy quét phần cứng ngay khi mở ứng dụng
+    window.onload = runHardwareScan;
+</script>
+
+</body>
+</html>

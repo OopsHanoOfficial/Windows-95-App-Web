@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Microsoft Paint - Windows 95</title>
+    <style>
+        :root {
+            --win-gray: #c0c0c0;
+            --win-dark: #808080;
+            --win-light: #ffffff;
+            --win-blue: #000080;
+        }
+
+        * { box-sizing: border-box; font-family: 'MS Sans Serif', Tahoma, sans-serif; touch-action: none; }
+        body { margin: 0; padding: 0; background: #008080; height: 100vh; display: flex; flex-direction: column; }
+
+        #toolbar { 
+            background: var(--win-gray); border-bottom: 2px solid #000; padding: 4px; 
+            display: flex; gap: 8px; flex-wrap: wrap; box-shadow: inset 1px 1px var(--win-light);
+        }
+
+        .tool-box { 
+            display: flex; border: 2px inset var(--win-light); padding: 2px; 
+            background: var(--win-gray); align-items: center; gap: 5px;
+        }
+
+        button { 
+            height: 32px; min-width: 32px; cursor: pointer; border: 2px solid; 
+            border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light); 
+            background: var(--win-gray); display: flex; align-items: center; justify-content: center;
+        }
+
+        button.active { 
+            border-color: var(--win-dark) var(--win-light) var(--win-light) var(--win-dark); 
+            background: #e0e0e0; 
+        }
+
+        select, input[type="color"] { height: 28px; border: 2px inset var(--win-light); background: white; outline: none; }
+
+        #workspace { flex-grow: 1; overflow: auto; background: #808080; display: flex; justify-content: center; align-items: center; padding: 10px; }
+        #canvas-wrapper { position: relative; background: white; box-shadow: 4px 4px 10px rgba(0,0,0,0.4); }
+        canvas { display: block; cursor: crosshair; }
+
+        #status { background: var(--win-gray); border-top: 2px solid var(--win-light); padding: 2px 10px; font-size: 11px; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+
+<div id="toolbar">
+    <div class="tool-box">
+        <button id="btn-pencil" class="active" onclick="changeMode('pencil')" title="Bút vẽ tự do">✏️</button>
+        <button id="btn-move" onclick="changeMode('move')" title="Chọn và Di chuyển">🖱️</button>
+    </div>
+
+    <div class="tool-box">
+        <span>Hình:</span>
+        <select id="shape-type" onchange="changeMode('shape')">
+            <option value="none">-- Tự do --</option>
+            <option value="rect">Hình chữ nhật</option>
+            <option value="circle">Hình tròn</option>
+            <option value="oval">Hình bầu dục</option>
+            <option value="parallelogram">Hình bình hành</option>
+        </select>
+    </div>
+
+    <div class="tool-box">
+        <input type="color" id="color-picker" value="#000000">
+        <select id="size-picker">
+            <option value="2">Mảnh</option>
+            <option value="5" selected>Vừa</option>
+            <option value="10">Dày</option>
+        </select>
+    </div>
+
+    <div class="tool-box">
+        <button onclick="undo()" title="Hoàn tác">↩️</button>
+        <button onclick="clearCanvas()" title="Xóa tất cả">🗑️</button>
+        <button onclick="saveImage()" title="Lưu ảnh">💾 Lưu</button>
+    </div>
+</div>
+
+<div id="workspace">
+    <div id="canvas-wrapper">
+        <canvas id="paintCanvas"></canvas>
+    </div>
+</div>
+
+<div id="status">
+    <span id="mode-text">Chế độ: Bút vẽ tự do</span>
+    <span>Microsoft Paint - Windows 95</span>
+</div>
+
+<script>
+    const canvas = document.getElementById('paintCanvas');
+    const ctx = canvas.getContext('2d');
+    const modeText = document.getElementById('mode-text');
+
+    let isDrawing = false;
+    let currentMode = 'pencil';
+    let startX, startY;
+    let shapes = []; 
+    let selectedShape = null;
+    let currentShape = null;
+    let freeDrawLayer = null;
+
+    function init() {
+        canvas.width = 800;
+        canvas.height = 600;
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        freeDrawLayer = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        drawAll();
+    }
+
+    function changeMode(m) {
+        currentMode = m;
+        document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        if(m === 'pencil') document.getElementById('btn-pencil').classList.add('active');
+        if(m === 'move') document.getElementById('btn-move').classList.add('active');
+        modeText.innerText = "Chế độ: " + (m === 'pencil' ? "Bút vẽ" : m === 'move' ? "Di chuyển" : "Vẽ hình");
+    }
+
+    function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX || (e.touches ? e.touches[0].clientX : 0)) - rect.left;
+        const y = (e.clientY || (e.touches ? e.touches[0].clientY : 0)) - rect.top;
+        return { x, y };
+    }
+
+    canvas.onmousedown = canvas.ontouchstart = (e) => {
+        if(e.type === 'touchstart') e.preventDefault();
+        isDrawing = true;
+        const pos = getPos(e);
+        startX = pos.x; startY = pos.y;
+
+        if (currentMode === 'move') {
+            selectedShape = [...shapes].reverse().find(s => 
+                pos.x >= s.x && pos.x <= s.x + s.w && pos.y >= s.y && pos.y <= s.y + s.h
+            );
+        } else if (currentMode === 'shape') {
+            const type = document.getElementById('shape-type').value;
+            if(type === 'none') return changeMode('pencil');
+            currentShape = {
+                type: type, x: startX, y: startY, w: 0, h: 0,
+                color: document.getElementById('color-picker').value,
+                size: document.getElementById('size-picker').value
+            };
+            shapes.push(currentShape);
+        } else {
+            ctx.putImageData(freeDrawLayer, 0, 0);
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+        }
+    };
+
+    window.onmousemove = window.ontouchmove = (e) => {
+        if (!isDrawing) return;
+        const pos = getPos(e);
+
+        if (currentMode === 'move' && selectedShape) {
+            selectedShape.x += (pos.x - startX);
+            selectedShape.y += (pos.y - startY);
+            startX = pos.x; startY = pos.y;
+            drawAll();
+        } else if (currentMode === 'shape' && currentShape) {
+            currentShape.w = pos.x - startX;
+            currentShape.h = pos.y - startY;
+            drawAll();
+        } else if (currentMode === 'pencil') {
+            ctx.strokeStyle = document.getElementById('color-picker').value;
+            ctx.lineWidth = document.getElementById('size-picker').value;
+            ctx.lineCap = 'round';
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            freeDrawLayer = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        }
+    };
+
+    window.onmouseup = window.ontouchend = () => {
+        isDrawing = false;
+        currentShape = null;
+        drawAll();
+    };
+
+    function drawAll() {
+        ctx.putImageData(freeDrawLayer, 0, 0);
+        shapes.forEach(s => {
+            ctx.strokeStyle = s.color;
+            ctx.lineWidth = s.size;
+            ctx.setLineDash(s === selectedShape ? [5, 5] : []);
+            ctx.beginPath();
+            if (s.type === 'rect') {
+                ctx.strokeRect(s.x, s.y, s.w, s.h);
+            } else if (s.type === 'circle' || s.type === 'oval') {
+                ctx.ellipse(s.x + s.w/2, s.y + s.h/2, Math.abs(s.w/2), Math.abs(s.h/2), 0, 0, 2 * Math.PI);
+                ctx.stroke();
+            } else if (s.type === 'parallelogram') {
+                const shift = s.w * 0.3;
+                ctx.moveTo(s.x + shift, s.y); ctx.lineTo(s.x + s.w + shift, s.y);
+                ctx.lineTo(s.x + s.w, s.y + s.h); ctx.lineTo(s.x, s.y + s.h);
+                ctx.closePath(); ctx.stroke();
+            }
+        });
+        ctx.setLineDash([]);
+    }
+
+    function clearCanvas() {
+        if (confirm("Bạn có chắc chắn muốn xóa toàn bộ bản vẽ không?")) {
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            freeDrawLayer = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            shapes = [];
+            selectedShape = null;
+            drawAll();
+        }
+    }
+
+    function undo() {
+        if (currentMode === 'pencil') {
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            freeDrawLayer = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        } else {
+            shapes.pop();
+        }
+        drawAll();
+    }
+
+    function saveImage() {
+        let name = prompt("Nhập tên ảnh muốn lưu:", "untitled");
+        if (name === null) return; 
+        if (name.trim() === "") name = "untitled";
+        const link = document.createElement('a');
+        link.download = name + '.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    }
+
+    window.onload = init;
+</script>
+</body>
+</html>

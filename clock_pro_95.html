@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Clock Windows 95</title>
+    <style>
+        :root { --win-gray: #c0c0c0; --win-dark: #808080; --win-light: #ffffff; --win-blue: #000080; }
+        * { box-sizing: border-box; font-family: 'Tahoma', 'MS Sans Serif', sans-serif; }
+        body { margin: 0; background: #008080; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+
+        /* CỬA SỔ CHÍNH */
+        #main-window {
+            width: 320px; background: var(--win-gray); border: 2px solid;
+            border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+            padding: 2px; box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+        }
+        #title-bar { background: var(--win-blue); color: white; padding: 3px 5px; font-size: 13px; font-weight: bold; display: flex; justify-content: space-between; }
+        
+        /* KHU VỰC HIỂN THỊ ĐỒNG HỒ */
+        #display-area {
+            background: #000; color: #0f0; border: 3px inset var(--win-light);
+            margin: 10px; height: 180px; display: flex; justify-content: center; align-items: center; position: relative;
+        }
+
+        /* ĐỒNG HỒ SỐ (MẶC ĐỊNH) */
+        #digital-clock { font-size: 48px; font-family: 'Courier New', monospace; font-weight: bold; text-shadow: 0 0 10px #0f0; }
+
+        /* ĐỒNG HỒ KIM */
+        #analog-clock { width: 140px; height: 140px; background: white; border-radius: 50%; position: relative; display: none; border: 2px solid #fff; }
+        .hand { position: absolute; bottom: 50%; left: 50%; transform-origin: bottom; background: #000; transform: translateX(-50%); }
+        #hour { width: 4px; height: 25%; }
+        #min { width: 3px; height: 35%; }
+        #sec { width: 1.5px; height: 40%; background: red; }
+
+        /* MENU CÀI ĐẶT */
+        #setup-window {
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 280px; background: var(--win-gray); border: 2px solid;
+            border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+            z-index: 100; padding: 2px;
+        }
+        .setup-body { padding: 10px; font-size: 12px; }
+        fieldset { border: 2px groove var(--win-light); margin-bottom: 10px; padding: 10px; }
+        
+        input, select, button { 
+            width: 100%; margin-top: 5px; font-size: 12px; border: 2px solid;
+            border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+            background: var(--win-gray); padding: 3px;
+        }
+        button:active { border-color: var(--win-dark) var(--win-light) var(--win-light) var(--win-dark); }
+
+        #bottom-bar { padding: 5px; border-top: 1px solid var(--win-dark); font-size: 11px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div id="main-window">
+    <div id="title-bar">
+        <span>Clock Windows 95</span>
+        <span style="cursor:pointer" onclick="openSetup()">⚙️ Settings</span>
+    </div>
+    
+    <div id="display-area">
+        <div id="digital-clock">00:00:00</div>
+        
+        <div id="analog-clock">
+            <div id="hour" class="hand"></div>
+            <div id="min" class="hand"></div>
+            <div id="sec" class="hand"></div>
+            <div style="position:absolute; top:50%; left:50%; width:8px; height:8px; background:#000; border-radius:50%; transform:translate(-50%,-50%)"></div>
+        </div>
+    </div>
+
+    <div id="bottom-bar" id="date-info">Date: Loading...</div>
+</div>
+
+<div id="setup-window">
+    <div id="title-bar"><span>Clock Setup</span><span onclick="closeSetup()" style="cursor:pointer">X</span></div>
+    <div class="setup-body">
+        <fieldset>
+            <legend>Loại đồng hồ</legend>
+            <select id="clock-type" onchange="switchClock(this.value)">
+                <option value="digital">Đồng hồ Số (Digital)</option>
+                <option value="analog">Đồng hồ Kim (Analog)</option>
+            </select>
+        </fieldset>
+
+        <fieldset>
+            <legend>Chỉnh giờ thủ công</legend>
+            <input type="datetime-local" id="manual-input">
+            <button onclick="setManual()">Áp dụng thủ công</button>
+        </fieldset>
+
+        <button onclick="syncTime()" style="background:#008080; color:white;">🔄 Cập nhật theo thiết bị</button>
+        <button onclick="closeSetup()" style="margin-top:10px;">Đóng</button>
+    </div>
+</div>
+
+<script>
+    let offset = 0;
+    let clockMode = 'digital';
+
+    function openSetup() { document.getElementById('setup-window').style.display = 'block'; }
+    function closeSetup() { document.getElementById('setup-window').style.display = 'none'; }
+
+    function switchClock(type) {
+        clockMode = type;
+        document.getElementById('digital-clock').style.display = (type === 'digital') ? 'block' : 'none';
+        document.getElementById('analog-clock').style.display = (type === 'analog') ? 'block' : 'none';
+        if(type === 'analog') { document.getElementById('display-area').style.background = '#808080'; }
+        else { document.getElementById('display-area').style.background = '#000'; }
+    }
+
+    function syncTime() {
+        offset = 0;
+        alert("Đã đồng bộ với giờ điện thoại!");
+        closeSetup();
+    }
+
+    function setManual() {
+        const val = document.getElementById('manual-input').value;
+        if(!val) return alert("Chọn thời gian đã!");
+        offset = new Date(val).getTime() - new Date().getTime();
+        alert("Đã chuyển sang giờ thủ công!");
+        closeSetup();
+    }
+
+    function update() {
+        let now = new Date(new Date().getTime() + offset);
+        
+        // Cập nhật Số
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        document.getElementById('digital-clock').innerText = `${h}:${m}:${s}`;
+        
+        // Cập nhật Kim
+        const sDeg = now.getSeconds() * 6;
+        const mDeg = now.getMinutes() * 6;
+        const hDeg = (now.getHours() % 12) * 30 + (now.getMinutes() * 0.5);
+        document.getElementById('sec').style.transform = `translateX(-50%) rotate(${sDeg}deg)`;
+        document.getElementById('min').style.transform = `translateX(-50%) rotate(${mDeg}deg)`;
+        document.getElementById('hour').style.transform = `translateX(-50%) rotate(${hDeg}deg)`;
+
+        // Ngày tháng
+        document.getElementById('bottom-bar').innerText = "System Date: " + now.toLocaleDateString('vi-VN');
+    }
+
+    setInterval(update, 1000);
+    update();
+</script>
+
+</body>
+</html>

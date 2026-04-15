@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Notepad Pro - Advanced Colors</title>
+    <style>
+        :root { --win-gray: #c0c0c0; --win-dark: #808080; --win-light: #ffffff; --win-blue: #000080; }
+        * { box-sizing: border-box; font-family: 'Courier New', monospace; touch-action: manipulation; }
+        body { margin: 0; padding: 0; background: #008080; height: 100vh; display: flex; flex-direction: column; overflow: hidden;}
+
+        /* TOOLBAR */
+        #menu-bar { background: var(--win-gray); border-bottom: 2px solid var(--win-dark); display: flex; padding: 2px 10px; font-size: 14px; gap: 15px; }
+        .menu-item { cursor: pointer; padding: 2px 5px; }
+        #toolbar { background: var(--win-gray); border-bottom: 1px solid var(--win-dark); padding: 5px; display: flex; gap: 12px; align-items: center; }
+
+        /* TEXT AREA */
+        #text-area { flex-grow: 1; width: 100%; border: none; padding: 10px; font-size: 18px; outline: none; resize: none; background: white; transition: color 0.2s; }
+
+        /* NÚT BẤM & INPUT CHUẨN WIN95 */
+        button, input[type="text"] { 
+            border: 2px solid; border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+            background: var(--win-gray); padding: 4px 12px; cursor: pointer; font-size: 13px;
+        }
+        button:active { border-color: var(--win-dark) var(--win-light) var(--win-light) var(--win-dark); }
+
+        /* Ô CHỌN MÀU TỰ DO */
+        #color-tool { display: flex; align-items: center; gap: 5px; font-size: 13px; }
+        input[type="color"] {
+            -webkit-appearance: none; border: 2px inset var(--win-light);
+            width: 35px; height: 30px; cursor: pointer; background: none; padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: none; }
+
+        /* CỬA SỔ LƯU FILE */
+        #save-dialog-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: center;
+        }
+        #save-dialog {
+            width: 85%; max-width: 320px; background: var(--win-gray); border: 2px solid;
+            border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+            padding: 2px; box-shadow: 2px 2px 0 #000;
+        }
+        .dialog-title { background: var(--win-blue); color: white; padding: 4px 8px; font-size: 13px; font-weight: bold; }
+        .dialog-body { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        #filename-input { background: white; border: 2px inset var(--win-light); padding: 8px; outline: none; width: 100%; }
+
+        #status-bar { background: var(--win-gray); border-top: 1px solid var(--win-dark); padding: 3px 10px; font-size: 11px; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+
+<div id="menu-bar">
+    <div class="menu-item" onclick="location.reload()">New</div>
+    <div class="menu-item" onclick="openSaveDialog()">Save</div>
+</div>
+
+<div id="toolbar">
+    <div id="color-tool">
+        <span>Màu chữ:</span>
+        <input type="color" id="free-color" value="#000000" oninput="updateTextColor(this.value)">
+    </div>
+    <button onclick="openSaveDialog()">💾 Lưu File .txt</button>
+</div>
+
+<textarea id="text-area" placeholder="Ghi chú tại đây..."></textarea>
+
+<div id="status-bar">
+    <span>Windows 95 Notepad Pro</span>
+    <span id="char-info">Ký tự: 0</span>
+</div>
+
+<div id="save-dialog-overlay">
+    <div id="save-dialog">
+        <div class="dialog-title">Lưu tệp văn bản</div>
+        <div class="dialog-body">
+            <label style="font-size: 13px;">Tên tệp tin:</label>
+            <input type="text" id="filename-input" value="my_note">
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="confirmSave()">OK</button>
+                <button onclick="closeSaveDialog()">Hủy</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const textArea = document.getElementById('text-area');
+    const overlay = document.getElementById('save-dialog-overlay');
+    const filenameInput = document.getElementById('filename-input');
+    const charInfo = document.getElementById('char-info');
+
+    // Cập nhật màu chữ tự do
+    function updateTextColor(color) {
+        textArea.style.color = color;
+    }
+
+    // Đếm ký tự
+    textArea.addEventListener('input', () => {
+        charInfo.innerText = "Ký tự: " + textArea.value.length;
+    });
+
+    // Các hàm xử lý Dialog (đã sửa lỗi xóa tên file)
+    function openSaveDialog() {
+        if (textArea.value.trim() === "") {
+            alert("Chưa có nội dung để lưu!");
+            return;
+        }
+        overlay.style.display = 'flex';
+        filenameInput.focus();
+        filenameInput.setSelectionRange(0, filenameInput.value.length);
+    }
+
+    function closeSaveDialog() {
+        overlay.style.display = 'none';
+    }
+
+    function confirmSave() {
+        let name = filenameInput.value.trim();
+        if (name === "") name = "untitled";
+
+        const blob = new Blob([textArea.value], { type: "text/plain" });
+        const link = document.createElement("a");
+        link.download = name + ".txt";
+        link.href = window.URL.createObjectURL(blob);
+        link.click();
+        
+        closeSaveDialog();
+    }
+</script>
+
+</body>
+</html>
